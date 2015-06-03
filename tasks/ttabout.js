@@ -10,41 +10,43 @@
 
 module.exports = function(grunt) {
 
-  // Please see the Grunt documentation for more information regarding task
-  // creation: http://gruntjs.com/creating-tasks
+    var fs = require('fs')
+        , xml2js = require('xml2js')
+        , f = require('util').format
+        , _ = grunt.util._
+        , log = grunt.log
+        , verbose = grunt.verbose;
 
-  grunt.registerMultiTask('ttabout', 'Creates the data/ttAbout and data/tt-release files during build', function() {
-    // Merge task-specific and/or target-specific options with these defaults.
-    var options = this.options({
-      punctuation: '.',
-      separator: ', '
+    grunt.registerMultiTask('ttabout', 'Creates the data/ttAbout and data/tt-release files during build', function() {
+
+        var done = this.async();
+
+        this.files.forEach(function(filePair) {
+            var dest = filePair.dest;
+
+            filePair.src.forEach(function(src) {
+                if (!grunt.file.exists(src)) {
+                    log.error('Error: File not found: `' + src + '`');
+                    return done(false);
+                }
+
+                var parser = new xml2js.Parser();
+
+                try {
+                    var buffer = grunt.file.read("deployment.xml", "utf8");
+                    parser.parseString(buffer, function (err, result) {
+                        log.writeln(JSON.stringify(result));
+                    });
+
+                } catch (e) {
+                    log.error('Error reading file `' + src + '` : ' + e);
+                    return done(false);
+                }
+
+            });
+
+        });
+
     });
-
-    // Iterate over all specified file groups.
-    this.files.forEach(function(f) {
-      // Concat specified files.
-      var src = f.src.filter(function(filepath) {
-        // Warn on and remove invalid source files (if nonull was set).
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.warn('Source file "' + filepath + '" not found.');
-          return false;
-        } else {
-          return true;
-        }
-      }).map(function(filepath) {
-        // Read file source.
-        return grunt.file.read(filepath);
-      }).join(grunt.util.normalizelf(options.separator));
-
-      // Handle options.
-      src += options.punctuation;
-
-      // Write the destination file.
-      grunt.file.write(f.dest, src);
-
-      // Print a success message.
-      grunt.log.writeln('File "' + f.dest + '" created.');
-    });
-  });
 
 };
