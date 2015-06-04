@@ -11,6 +11,7 @@
 module.exports = function(grunt) {
 
     var fs = require('fs')
+        , path = require('path')
         , xml2js = require('xml2js')
         , f = require('util').format
         , _ = grunt.util._
@@ -25,6 +26,7 @@ module.exports = function(grunt) {
             var dest = filePair.dest;
 
             filePair.src.forEach(function(src) {
+
                 if (!grunt.file.exists(src)) {
                     log.error('Error: File not found: `' + src + '`');
                     return done(false);
@@ -33,9 +35,29 @@ module.exports = function(grunt) {
                 var parser = new xml2js.Parser();
 
                 try {
-                    var buffer = grunt.file.read("deployment.xml", "utf8");
+
+                    var buffer = grunt.file.read(src, "utf8");
                     parser.parseString(buffer, function (err, result) {
-                        log.writeln(JSON.stringify(result));
+
+                        var name = result.package.name[0];
+                        if (name === undefined) {
+                            log.error('<name> tag not located in `' + src + '` file.');
+                            return done(false);
+                        }
+
+                        var release = result.package.version[0].release;
+                        if (release === undefined) {
+                            log.error('<release> tag not located in `' + src + '` file.');
+                            return done(false);
+                        }
+
+                        verbose.writeln(f(src + ' contents: ' + JSON.stringify(result)));
+
+                        // Create the tt-release.txt file which contains only the version release number
+                        //
+                        var ttReleaseData = release;
+                        grunt.file.write(path.join(dest, 'tt-release.txt'), ttReleaseData);
+
                     });
 
                 } catch (e) {
@@ -46,6 +68,8 @@ module.exports = function(grunt) {
             });
 
         });
+
+        done();
 
     });
 
