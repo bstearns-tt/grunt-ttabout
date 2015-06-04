@@ -34,36 +34,68 @@ module.exports = function(grunt) {
 
                 var parser = new xml2js.Parser();
 
+                var buffer;
+
                 try {
-
-                    var buffer = grunt.file.read(src, "utf8");
-                    parser.parseString(buffer, function (err, result) {
-
-                        var name = result.package.name[0];
-                        if (name === undefined) {
-                            log.error('<name> tag not located in `' + src + '` file.');
-                            return done(false);
-                        }
-
-                        var release = result.package.version[0].release;
-                        if (release === undefined) {
-                            log.error('<release> tag not located in `' + src + '` file.');
-                            return done(false);
-                        }
-
-                        verbose.writeln(f(src + ' contents: ' + JSON.stringify(result)));
-
-                        // Create the tt-release.txt file which contains only the version release number
-                        //
-                        var ttReleaseData = release;
-                        grunt.file.write(path.join(dest, 'tt-release.txt'), ttReleaseData);
-
-                    });
-
+                    buffer = grunt.file.read(src, "utf8");
                 } catch (e) {
                     log.error('Error reading file `' + src + '` : ' + e);
                     return done(false);
                 }
+
+                parser.parseString(buffer, function (err, result) {
+
+                    var name = result.package.name[0];
+                    if (name === undefined) {
+                        log.error('<name> tag not located in `' + src + '` file.');
+                        return done(false);
+                    }
+
+                    var release = result.package.version[0].release[0];
+                    if (release === undefined) {
+                        log.error('<release> tag not located in `' + src + '` file.');
+                        return done(false);
+                    }
+
+                    verbose.writeln(f(src + ' contents: ' + JSON.stringify(result)));
+
+                    // Create the tt-release.txt file which contains only the version release number
+                    //
+                    var ttReleaseData = release;
+                    try {
+                        grunt.file.write(path.join(dest, 'tt-release.txt'), ttReleaseData);
+                    } catch (e) {
+                        log.error('Error writing `tt-release.txt` file: ' + e);
+                        return done(false);
+                    }
+
+                    // Gather up the fields that we need for the ttAbout.json file and
+                    // construct the object
+                    //
+                    var ttAboutData = {};
+                    ttAboutData.version = release;
+                    ttAboutData.name = name;
+
+                    // Get the current user
+                    //
+                    var username = (process.env.USER || process.env.USERNAME);
+                    ttAboutData.buildUser = username;
+
+                    // TimeStamp
+                    //
+                    var buildDate = new Date();
+                    ttAboutData.buildDateTime = buildDate.toISOString();
+
+                    // Write out the results to the output file
+                    //
+                    try {
+                        grunt.file.write(path.join(dest, 'ttAbout.json'), JSON.stringify(ttAboutData));
+                    } catch (e) {
+                        log.error('Error writing `ttAbout.json` file: ' + e);
+                        return done(false);
+                    }
+
+                });
 
             });
 
